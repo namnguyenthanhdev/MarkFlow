@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import type { PastPaper, AnswerMap } from "@/types";
-import { useTimer } from "@/hooks/useTimer";
+import { useEffect } from "react";
+import { useStore } from "@nanostores/react";
+import type { PastPaper } from "@/types";
+import { $submitted } from "@/stores/exam";
+import { startTimer, stopTimer } from "@/stores/timer";
 import { TopNavbar } from "./TopNavbar";
 import { QuestionCard } from "./QuestionCard";
 import { WorkspacePanel } from "./WorkspacePanel";
@@ -14,73 +16,31 @@ interface ExamViewProps {
 }
 
 export function ExamView({ paper }: ExamViewProps) {
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<AnswerMap>({});
-  const [submitted, setSubmitted] = useState(false);
-  const { formatted, stop } = useTimer(paper.metadata.durationMinutes);
+  const submitted = useStore($submitted);
 
-  const currentQuestion = paper.questions[currentQuestionIndex];
-
-  const handleAnswerChange = useCallback((value: string) => {
-    setAnswers((prev) => ({ ...prev, [currentQuestion.id]: value }));
-  }, [currentQuestion.id]);
-
-  const goToNext = useCallback(() => {
-    if (currentQuestionIndex < paper.questions.length - 1) {
-      setCurrentQuestionIndex((i) => i + 1);
-    }
-  }, [currentQuestionIndex, paper.questions.length]);
-
-  const goToPrevious = useCallback(() => {
-    if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex((i) => i - 1);
-    }
-  }, [currentQuestionIndex]);
-
-  const handleSubmit = useCallback(() => {
-    stop();
-    setSubmitted(true);
-  }, [stop]);
-
-  const handleReset = useCallback(() => {
-    setCurrentQuestionIndex(0);
-    setAnswers({});
-    setSubmitted(false);
-  }, []);
+  useEffect(() => {
+    startTimer(paper.metadata.durationMinutes);
+    return () => stopTimer();
+  }, [paper.metadata.durationMinutes]);
 
   if (submitted) {
-    return <SubmissionSummary paper={paper} answers={answers} onReset={handleReset} />;
+    return <SubmissionSummary paper={paper} />;
   }
 
   return (
     <div className="flex h-dvh flex-col">
-      <TopNavbar
-        metadata={paper.metadata}
-        currentQuestion={currentQuestionIndex}
-        totalQuestions={paper.questions.length}
-        timerDisplay={formatted}
-      />
+      <TopNavbar paper={paper} />
 
       <div className="flex min-h-0 flex-1">
         <div className="w-[45%] overflow-y-auto border-r bg-muted/20">
-          <QuestionCard question={currentQuestion} />
+          <QuestionCard paper={paper} />
         </div>
         <div className="flex w-[55%] flex-col overflow-y-auto">
-          <WorkspacePanel
-            question={currentQuestion}
-            answer={answers[currentQuestion.id] || ""}
-            onAnswerChange={handleAnswerChange}
-          />
+          <WorkspacePanel paper={paper} />
         </div>
       </div>
 
-      <BottomNavbar
-        currentQuestion={currentQuestionIndex}
-        totalQuestions={paper.questions.length}
-        onPrevious={goToPrevious}
-        onNext={goToNext}
-        onSubmit={handleSubmit}
-      />
+      <BottomNavbar paper={paper} />
     </div>
   );
 }

@@ -1,21 +1,18 @@
 "use client";
 
-import type { PastPaper, AnswerMap } from "@/types";
+import { useStore } from "@nanostores/react";
+import type { PastPaper } from "@/types";
+import { $answers, resetExam } from "@/stores/exam";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, XCircle, ListChecks } from "lucide-react";
 
 interface SubmissionSummaryProps {
   paper: PastPaper;
-  answers: AnswerMap;
-  onReset: () => void;
 }
 
-export function SubmissionSummary({
-  paper,
-  answers,
-  onReset,
-}: SubmissionSummaryProps) {
+export function SubmissionSummary({ paper }: SubmissionSummaryProps) {
+  const answers = useStore($answers);
   const totalAnswered = Object.keys(answers).length;
   const totalQuestions = paper.questions.length;
 
@@ -133,7 +130,7 @@ export function SubmissionSummary({
       <div className="flex justify-center">
         <button
           type="button"
-          onClick={onReset}
+          onClick={resetExam}
           className="rounded-lg border px-6 py-2 text-sm font-medium transition-colors hover:bg-muted"
         >
           Start New Practice

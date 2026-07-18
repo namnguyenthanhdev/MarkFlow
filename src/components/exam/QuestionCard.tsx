@@ -1,13 +1,18 @@
 "use client";
 
 import Image from "next/image";
-import type { Question } from "@/types";
+import { useStore } from "@nanostores/react";
+import { $currentQuestionIndex } from "@/stores/exam";
+import type { PastPaper } from "@/types";
 
 interface QuestionCardProps {
-  question: Question;
+  paper: PastPaper;
 }
 
-export function QuestionCard({ question }: QuestionCardProps) {
+export function QuestionCard({ paper }: QuestionCardProps) {
+  const currentIndex = useStore($currentQuestionIndex);
+  const question = paper.questions[currentIndex];
+
   return (
     <section className="flex h-full flex-col gap-4 overflow-y-auto p-6">
       <div className="flex items-start justify-between gap-2">

@@ -1,32 +1,30 @@
 "use client";
 
+import { useStore } from "@nanostores/react";
 import { Badge } from "@/components/ui/badge";
-import type { PaperMetadata } from "@/types";
+import { $currentQuestionIndex } from "@/stores/exam";
+import { $formatted } from "@/stores/timer";
+import type { PastPaper } from "@/types";
 
 interface TopNavbarProps {
-  metadata: PaperMetadata;
-  currentQuestion: number;
-  totalQuestions: number;
-  timerDisplay: string;
+  paper: PastPaper;
 }
 
-export function TopNavbar({
-  metadata,
-  currentQuestion,
-  totalQuestions,
-  timerDisplay,
-}: TopNavbarProps) {
-  const progressPct = ((currentQuestion + 1) / totalQuestions) * 100;
+export function TopNavbar({ paper }: TopNavbarProps) {
+  const currentIndex = useStore($currentQuestionIndex);
+  const timerDisplay = useStore($formatted);
+  const totalQuestions = paper.questions.length;
+  const progressPct = ((currentIndex + 1) / totalQuestions) * 100;
 
   return (
     <header className="flex items-center gap-4 border-b bg-background px-6 py-3">
       <div className="flex items-center gap-3 min-w-0">
-        <h1 className="truncate text-sm font-semibold">{metadata.subject}</h1>
+        <h1 className="truncate text-sm font-semibold">{paper.metadata.subject}</h1>
         <Badge variant="secondary" className="shrink-0">
-          {metadata.curriculum}
+          {paper.metadata.curriculum}
         </Badge>
         <span className="text-xs text-muted-foreground">
-          {metadata.year} &middot; {metadata.paperNumber}
+          {paper.metadata.year} &middot; {paper.metadata.paperNumber}
         </span>
       </div>
 
@@ -40,7 +38,7 @@ export function TopNavbar({
             />
           </div>
           <span className="text-xs tabular-nums text-muted-foreground">
-            {currentQuestion + 1}/{totalQuestions}
+            {currentIndex + 1}/{totalQuestions}
           </span>
         </div>
 

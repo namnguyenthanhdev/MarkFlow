@@ -1,20 +1,21 @@
 "use client";
 
-import type { Question } from "@/types";
+import { useStore } from "@nanostores/react";
+import { $currentQuestionIndex, $answers, setAnswer } from "@/stores/exam";
 import { MultipleChoice } from "./MultipleChoice";
 import { FreeResponse } from "./FreeResponse";
+import type { PastPaper } from "@/types";
 
 interface WorkspacePanelProps {
-  question: Question;
-  answer: string;
-  onAnswerChange: (value: string) => void;
+  paper: PastPaper;
 }
 
-export function WorkspacePanel({
-  question,
-  answer,
-  onAnswerChange,
-}: WorkspacePanelProps) {
+export function WorkspacePanel({ paper }: WorkspacePanelProps) {
+  const currentIndex = useStore($currentQuestionIndex);
+  const answers = useStore($answers);
+  const question = paper.questions[currentIndex];
+  const answer = answers[question.id] || "";
+
   if (question.type === "multiple_choice" && question.options) {
     return (
       <div className="p-6">
@@ -24,7 +25,7 @@ export function WorkspacePanel({
         <MultipleChoice
           options={question.options}
           selected={answer || null}
-          onSelect={onAnswerChange}
+          onSelect={(value) => setAnswer(question.id, value)}
         />
       </div>
     );
@@ -37,7 +38,7 @@ export function WorkspacePanel({
       </h3>
       <FreeResponse
         value={answer || ""}
-        onChange={onAnswerChange}
+        onChange={(value) => setAnswer(question.id, value)}
         minChars={question.type === "long_form" ? 50 : undefined}
       />
     </div>
