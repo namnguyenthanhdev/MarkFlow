@@ -24,6 +24,8 @@ export const mockPaper: PastPaper = {
         "C. It reduces molecular oxygen to form water",
         "D. It oxidises NADH to regenerate NAD⁺",
       ],
+      correctAnswer:
+        "B. It uses the proton gradient to catalyse the synthesis of ATP from ADP and inorganic phosphate",
       markSchemeCriteria: [
         "Identifies ATP synthase as using the proton motive force (proton gradient)",
         "Correctly states ATP is synthesised from ADP + Pi",

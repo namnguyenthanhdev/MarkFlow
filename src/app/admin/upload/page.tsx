@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, type DragEvent } from "react";
+import { useState, useRef } from "react";
 import {
   Loader2,
   Sparkles,
@@ -14,54 +14,43 @@ import {
 import { Button } from "@/components/ui/button";
 import { extractTextFromPdf } from "@/lib/pdf-extractor";
 
-export default function AdminUploadPage() {
-  const [text, setText] = useState("");
-  const [parsedJson, setParsedJson] = useState<object | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+interface DocInputProps {
+  label: string;
+  hint: string;
+  text: string;
+  onTextChange: (value: string) => void;
+  placeholder: string;
+  onError: (message: string | null) => void;
+}
+
+function DocInput({
+  label,
+  hint,
+  text,
+  onTextChange,
+  placeholder,
+  onError,
+}: DocInputProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  function handleDragOver(e: DragEvent) {
-    e.preventDefault();
-    setIsDragging(true);
-  }
-
-  function handleDragLeave(e: DragEvent) {
-    e.preventDefault();
-    setIsDragging(false);
-  }
-
-  function handleDrop(e: DragEvent) {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) handleFile(file);
-  }
-
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) handleFile(file);
-  }
-
   async function handleFile(file: File) {
     if (file.type !== "application/pdf") {
-      setError("Please upload a PDF file");
+      onError("Please upload a PDF file");
       return;
     }
 
     setIsExtracting(true);
-    setError(null);
+    onError(null);
     setFileName(file.name);
 
     try {
       const extractedText = await extractTextFromPdf(file);
-      setText(extractedText);
+      onTextChange(extractedText);
     } catch (err) {
-      setError(
+      onError(
         err instanceof Error ? err.message : "Failed to extract text from PDF"
       );
       setFileName(null);
@@ -72,9 +61,100 @@ export default function AdminUploadPage() {
 
   function handleClearFile() {
     setFileName(null);
-    setText("");
+    onTextChange("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
+      <div>
+        <label className="text-xs font-medium text-muted-foreground">
+          {label}
+        </label>
+        <p className="text-[11px] text-muted-foreground/70">{hint}</p>
+      </div>
+
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          setIsDragging(false);
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDragging(false);
+          const file = e.dataTransfer.files[0];
+          if (file) handleFile(file);
+        }}
+        onClick={() => fileInputRef.current?.click()}
+        className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-4 transition-colors ${
+          isDragging
+            ? "border-primary/50 bg-primary/5"
+            : "border-border hover:border-muted-foreground/30"
+        }`}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/pdf"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleFile(file);
+          }}
+          className="hidden"
+        />
+
+        {isExtracting ? (
+          <>
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">
+              Extracting text from PDF...
+            </span>
+          </>
+        ) : fileName ? (
+          <div className="flex items-center gap-2">
+            <FileText className="h-5 w-5 text-primary" />
+            <span className="text-xs font-medium">{fileName}</span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleClearFile();
+              }}
+              className="text-muted-foreground transition-colors hover:text-destructive"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        ) : (
+          <>
+            <Upload className="h-5 w-5 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">
+              Drop a PDF here or click to browse
+            </span>
+          </>
+        )}
+      </div>
+
+      <textarea
+        value={text}
+        onChange={(e) => onTextChange(e.target.value)}
+        placeholder={placeholder}
+        className="min-h-0 flex-1 resize-none rounded-xl border-2 border-border bg-background p-4 text-sm leading-relaxed outline-none transition-colors focus:border-primary/50 focus:ring-2 focus:ring-primary/10 placeholder:text-muted-foreground/40"
+      />
+    </div>
+  );
+}
+
+export default function AdminUploadPage() {
+  const [text, setText] = useState("");
+  const [markScheme, setMarkScheme] = useState("");
+  const [parsedJson, setParsedJson] = useState<object | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   async function handleProcess() {
     if (!text.trim()) return;
@@ -87,7 +167,10 @@ export default function AdminUploadPage() {
       const res = await fetch("/api/parse-paper", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({
+          text,
+          markScheme: markScheme.trim() ? markScheme : undefined,
+        }),
       });
 
       const json = await res.json();
@@ -124,78 +207,30 @@ export default function AdminUploadPage() {
         <div>
           <h1 className="text-xl font-bold">Paper Parser</h1>
           <p className="text-sm text-muted-foreground">
-            Upload a PDF or paste raw exam text &rarr; parse with Gemini &rarr;
-            preview in Exam UI
+            Upload the exam paper and its mark scheme &rarr; parse with Gemini
+            &rarr; preview in Exam UI
           </p>
         </div>
       </header>
 
       <div className="flex min-h-0 flex-1 gap-6">
-        <div className="flex w-1/2 flex-col gap-3">
-          <label className="text-xs font-medium text-muted-foreground">
-            Input
-          </label>
-
-          <div
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-            className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-6 transition-colors ${
-              isDragging
-                ? "border-primary/50 bg-primary/5"
-                : "border-border hover:border-muted-foreground/30"
-            }`}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="application/pdf"
-              onChange={handleFileSelect}
-              className="hidden"
-            />
-
-            {isExtracting ? (
-              <>
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">
-                  Extracting text from PDF...
-                </span>
-              </>
-            ) : fileName ? (
-              <>
-                <FileText className="h-6 w-6 text-primary" />
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{fileName}</span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleClearFile();
-                    }}
-                    className="text-muted-foreground hover:text-destructive transition-colors"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  Text extracted &mdash; you can edit below
-                </span>
-              </>
-            ) : (
-              <>
-                <Upload className="h-6 w-6 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">
-                  Drop a PDF here or click to browse
-                </span>
-              </>
-            )}
-          </div>
-
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
+        <div className="flex w-1/2 flex-col gap-4">
+          <DocInput
+            label="Exam Paper"
+            hint="The question paper (required)"
+            text={text}
+            onTextChange={setText}
+            onError={setError}
             placeholder={`Paste the raw exam paper text here...\n\nExample:\nCambridge International A-Level Biology\nPaper 4 (Extended) - 2024\n\n1. Which of the following... [2 marks]\nA) ...\nB) ...\n\n2. Describe the role of... [4 marks]`}
-            className="min-h-0 flex-1 resize-none rounded-xl border-2 border-border bg-background p-4 text-sm leading-relaxed outline-none transition-colors focus:border-primary/50 focus:ring-2 focus:ring-primary/10 placeholder:text-muted-foreground/40"
+          />
+
+          <DocInput
+            label="Mark Scheme"
+            hint="Optional but recommended — grounds the AI grading criteria in the real mark scheme"
+            text={markScheme}
+            onTextChange={setMarkScheme}
+            onError={setError}
+            placeholder={`Paste the official mark scheme here...\n\nExample:\n1. B [1]\n2. stroma (1); RuBisCO / rubisco (1); RuBP + CO2 (1); ATP and NADPH used (1)`}
           />
 
           <Button
