@@ -7,6 +7,27 @@ export interface Question {
   contextImages?: string[];
   options?: string[];
   markSchemeCriteria: string[];
+  correctAnswer?: string;
+}
+
+export interface CriterionResult {
+  criterion: string;
+  met: boolean;
+  note: string;
+}
+
+export interface QuestionGrade {
+  questionId: string;
+  awardedPoints: number;
+  maxPoints: number;
+  criteria: CriterionResult[];
+  feedback: string;
+}
+
+export interface GradeResult {
+  grades: QuestionGrade[];
+  totalAwarded: number;
+  totalPoints: number;
 }
 
 export interface PaperMetadata {

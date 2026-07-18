@@ -41,6 +41,11 @@ const responseSchema = {
             items: { type: Type.STRING },
             description: "Distinct checklist items from the mark scheme for AI grading",
           },
+          correctAnswer: {
+            type: Type.STRING,
+            description:
+              "The accepted/correct answer from the mark scheme. For multiple_choice, the exact correct option (including its label). May be omitted if the mark scheme does not state a single answer.",
+          },
         },
         required: ["id", "questionNumber", "type", "points", "prompt", "markSchemeCriteria"],
       },
@@ -58,15 +63,18 @@ Rules:
    - "short_answer": expects a brief response, typically 1-3 sentences or a definition
    - "long_form": multi-part questions requiring extended writing, data analysis, or experimental reasoning
 3. Calculate the point value from any [N marks] or (N) notation in the text.
-4. Generate markSchemeCriteria as distinct atomic checklist items based on the marking guidance provided in the text or implied by the question. Each criterion should be one verifiable point.
-5. For MCQ options, include the full option text including its label (e.g. "A. The cell membrane").
-6. If totalPoints is not explicitly stated, sum the points from all questions.
-7. If durationMinutes is not explicitly stated, estimate 90 minutes as a reasonable default.`;
+4. markSchemeCriteria must be distinct atomic checklist items, each one verifiable point used later for grading.
+   - When a MARK SCHEME section is provided, derive the criteria STRICTLY from it — use its exact awarding points, accepted answers, and wording. Do NOT invent criteria that the mark scheme does not contain, and align the number of criteria with the marks available.
+   - Only when no mark scheme is provided should you infer reasonable criteria from the question itself.
+5. When a mark scheme is provided, populate correctAnswer with the accepted answer it states. For multiple_choice, set correctAnswer to the exact correct option text (including its label, e.g. "B. ...").
+6. For MCQ options, include the full option text including its label (e.g. "A. The cell membrane").
+7. If totalPoints is not explicitly stated, sum the points from all questions.
+8. If durationMinutes is not explicitly stated, estimate 90 minutes as a reasonable default.`;
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { text } = body;
+    const { text, markScheme } = body;
 
     if (!text || typeof text !== "string" || text.trim().length === 0) {
       return NextResponse.json(
@@ -75,10 +83,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const hasMarkScheme =
+      typeof markScheme === "string" && markScheme.trim().length > 0;
+
+    const contents = hasMarkScheme
+      ? `Parse the following exam paper into the structured JSON format. Ground every markSchemeCriteria strictly in the provided MARK SCHEME.\n\n=== EXAM PAPER ===\n${text}\n\n=== MARK SCHEME ===\n${markScheme}`
+      : `Parse the following exam paper into the structured JSON format:\n\n${text}`;
+
     const ai = getGeminiClient();
     const response = await ai.models.generateContent({
       model: GEMINI_MODEL,
-      contents: `Parse the following exam paper into the structured JSON format:\n\n${text}`,
+      contents,
       config: {
         responseMimeType: "application/json",
         responseSchema,
